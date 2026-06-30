@@ -43,15 +43,16 @@ postgresql://user:pass@ep-xxx.sa-east-1.aws.neon.tech/performance?sslmode=requir
 
 1. Conecte o repositório GitHub ao [Railway](https://railway.app)
 2. Crie um serviço apontando para a pasta **`backend/`**
-3. Configure as variáveis de ambiente:
+3. Configure as variáveis de ambiente em **Variables** (obrigatório — o `.env` local não sobe para o Railway):
 
 | Variável | Valor |
 |----------|-------|
-| `DATABASE_URL` | Connection string do Neon |
+| `DATABASE_URL` | Connection string completa do Neon (com `?sslmode=require`) |
 | `JWT_SECRET` | String aleatória longa (ex.: `openssl rand -base64 48`) |
 | `JWT_EXPIRES_IN` | `7d` |
-| `CORS_ORIGIN` | URL do frontend na Vercel (ver passo 3) |
-| `PORT` | Railway define automaticamente — não precisa setar |
+| `CORS_ORIGIN` | URL do frontend (temporário: `http://localhost:5173`) |
+
+> Se `DATABASE_URL` faltar, o log mostra: `The datasource.url property is required`
 
 4. **Start command:**
 
@@ -191,6 +192,7 @@ Para uso interno do RH, o free tier costuma ser suficiente no início.
 
 | Problema | Solução |
 |----------|---------|
+| `datasource.url property is required` | Adicione `DATABASE_URL` nas Variables do Railway |
 | CORS error no browser | Confira `CORS_ORIGIN` no backend |
 | 401 em todas as rotas | Token expirado — faça login novamente |
 | API não conecta ao banco | Verifique `DATABASE_URL` e SSL |
