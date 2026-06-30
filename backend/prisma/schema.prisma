@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  RH
+  ADMIN
+}
+
+enum EvaluationStatus {
+  DRAFT
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(RH)
+  createdAt DateTime @default(now())
+
+  evaluations Evaluation[] @relation("EvaluatorEvaluations")
+}
+
+model Employee {
+  id         String   @id @default(uuid())
+  name       String
+  position   String
+  department String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  evaluations Evaluation[]
+}
+
+model EvaluationTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  categories  EvaluationCategory[]
+  evaluations Evaluation[]
+}
+
+model EvaluationCategory {
+  id         String @id @default(uuid())
+  templateId String
+  name       String
+  weight     Float
+  order      Int
+
+  template         EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  questions        EvaluationQuestion[]
+  categoryComments CategoryComment[]
+
+  @@index([templateId])
+}
+
+model EvaluationQuestion {
+  id         String @id @default(uuid())
+  categoryId String
+  text       String
+  order      Int
+
+  category EvaluationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  answers  EvaluationAnswer[]
+
+  @@index([categoryId])
+}
+
+model Evaluation {
+  id             String           @id @default(uuid())
+  employeeId     String
+  templateId     String
+  evaluatorId    String
+  period         String
+  evaluatedAt    DateTime         @default(now())
+  status         EvaluationStatus @default(DRAFT)
+  finalScore     Float?
+  classification String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  employee         Employee           @relation(fields: [employeeId], references: [id])
+  template         EvaluationTemplate @relation(fields: [templateId], references: [id])
+  evaluator        User               @relation("EvaluatorEvaluations", fields: [evaluatorId], references: [id])
+  answers          EvaluationAnswer[]
+  categoryComments CategoryComment[]
+  finalFeedback    FinalFeedback?
+
+  @@index([employeeId])
+  @@index([templateId])
+  @@index([evaluatorId])
+  @@index([status])
+}
+
+model EvaluationAnswer {
+  id           String  @id @default(uuid())
+  evaluationId String
+  questionId   String
+  score        Int
+  comment      String?
+
+  evaluation Evaluation         @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  question   EvaluationQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([evaluationId, questionId])
+  @@index([evaluationId])
+}
+
+model CategoryComment {
+  id           String @id @default(uuid())
+  evaluationId String
+  categoryId   String
+  comment      String
+
+  evaluation Evaluation         @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  category   EvaluationCategory @relation(fields: [categoryId], references: [id])
+
+  @@unique([evaluationId, categoryId])
+}
+
+model FinalFeedback {
+  id              String @id @default(uuid())
+  evaluationId    String @unique
+  strengths       String
+  improvements    String
+  recommendations String
+
+  evaluation Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+}
