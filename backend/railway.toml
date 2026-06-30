@@ -6,3 +6,5 @@ startCommand = "npm run start:prod"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
+
+# Railway injeta PORT automaticamente — use essa variável ao gerar o domínio público

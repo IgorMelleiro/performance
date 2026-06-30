@@ -1,6 +1,8 @@
 import app from './app.js';
-import { config } from './config/index.js';
+import { config, validateProductionEnv } from './config/index.js';
 
-app.listen(config.port, () => {
-  console.log(`API rodando em http://localhost:${config.port}`);
+validateProductionEnv();
+
+app.listen(config.port, '0.0.0.0', () => {
+  console.log(`API rodando na porta ${config.port}`);
 });
