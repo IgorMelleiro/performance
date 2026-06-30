@@ -47,12 +47,30 @@ postgresql://user:pass@ep-xxx.sa-east-1.aws.neon.tech/performance?sslmode=requir
 
 | Variável | Valor |
 |----------|-------|
-| `DATABASE_URL` | Connection string completa do Neon (com `?sslmode=require`) |
+| `DATABASE_URL` | Connection string **direta** do Neon (veja abaixo) |
 | `JWT_SECRET` | String aleatória longa (ex.: `openssl rand -base64 48`) |
 | `JWT_EXPIRES_IN` | `7d` |
 | `CORS_ORIGIN` | URL do frontend (temporário: `http://localhost:5173`) |
+| `NODE_ENV` | `production` |
 
 > Se `DATABASE_URL` faltar, o log mostra: `The datasource.url property is required`
+
+#### Connection string do Neon (importante)
+
+No painel Neon → **Connection details**:
+
+1. Selecione **Direct connection** (não "Pooled")
+2. Copie a URL completa
+3. Deve terminar com `?sslmode=require`
+
+Exemplo de formato:
+```
+postgresql://user:senha@ep-xxx.sa-east-1.aws.neon.tech/neondb?sslmode=require
+```
+
+Se a senha tiver caracteres especiais (`@`, `#`, `%`, etc.), use a URL já codificada que o Neon fornece no botão **Copy**.
+
+> As migrations já foram aplicadas localmente. O start em produção **não** roda migrate de novo.
 
 4. **Start command:**
 
@@ -193,6 +211,7 @@ Para uso interno do RH, o free tier costuma ser suficiente no início.
 | Problema | Solução |
 |----------|---------|
 | `datasource.url property is required` | Adicione `DATABASE_URL` nas Variables do Railway |
+| `P1001: Can't reach database server` | Use connection **Direct** do Neon + `?sslmode=require`; copie URL de novo; acorde o banco no painel Neon |
 | CORS error no browser | Confira `CORS_ORIGIN` no backend |
 | 401 em todas as rotas | Token expirado — faça login novamente |
 | API não conecta ao banco | Verifique `DATABASE_URL` e SSL |
