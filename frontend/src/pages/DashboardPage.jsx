@@ -133,7 +133,7 @@ export default function DashboardPage() {
         ))}
       </Grid>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2} sx={{ mt: 2 }}>
         <Grid size={{ xs: 12, lg: 8 }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
