@@ -494,7 +494,7 @@ export default function EvaluationWizardPage({ mode: modeProp }) {
         />
       )}
 
-      <Stack direction="row" justifyContent="space-between" mt={3}>
+      <Stack direction="row" justifyContent="space-between" sx={{ mt: 2 }}>
         <Button disabled={currentStep === 0 || isSaving} onClick={handleBack}>
           Anterior
         </Button>
