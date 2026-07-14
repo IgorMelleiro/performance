@@ -468,7 +468,7 @@ function FuncionarioDashboard({ data, loading, navigate }) {
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3, height: '100%' }}>
+          <Paper sx={{ p: 3, height: '100%', mt: 2 }}>
             <Typography variant="h6" gutterBottom>
               Feedback recebido
             </Typography>
