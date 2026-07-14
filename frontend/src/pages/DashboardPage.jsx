@@ -107,7 +107,7 @@ function RecentEvaluationsPanel({
   navigate,
 }) {
   return (
-    <Paper sx={{ p: 3 }}>
+    <Paper sx={{ p: 3, mt: 8 }}>
       <Typography variant="h6" gutterBottom>
         Avaliações recentes
       </Typography>
