@@ -57,48 +57,46 @@ npm run dev
 - Backend: http://localhost:3001
 - Health check: http://localhost:3001/api/health
 
-## Autenticação
+## Papéis e navegação
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/api/auth/login` | Login com e-mail e senha |
-| GET | `/api/auth/me` | Dados do usuário autenticado (requer JWT) |
+| Papel | Menu |
+|-------|------|
+| **RH** | Dashboard, Colaboradores, Times, Avaliações, Templates, Configurações |
+| **Gerente** | Dashboard, Minha Equipe, Avaliações |
+| **Funcionário** | Dashboard, Minhas Avaliações, Autoavaliação, Meu Perfil |
 
-### Colaboradores (requer JWT)
+Permissões centralizadas em:
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/employees` | Lista paginada com busca e filtros |
-| GET | `/api/employees/:id` | Detalhe do colaborador |
-| GET | `/api/employees/:id/history` | Histórico de avaliações |
-| POST | `/api/employees` | Criar colaborador |
-| PUT | `/api/employees/:id` | Atualizar colaborador |
-| DELETE | `/api/employees/:id` | Excluir colaborador |
+- Backend: `backend/src/auth/` + middleware `authorize`
+- Frontend: `frontend/src/auth/` + `RoleGuard` / `usePermissions`
 
-### Dashboard (requer JWT)
+## Credenciais do seed
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/dashboard/stats` | Métricas e avaliações recentes |
+Senha padrão para **todos**: `123456`
 
-### Avaliações (requer JWT)
+| E-mail | Papel | Observação |
+|--------|-------|------------|
+| `rh1@empresa.com` | RH | Acesso total |
+| `rh2@empresa.com` | RH | Acesso total |
+| `gerente.a@empresa.com` | Gerente | Time A (func. 01–10) |
+| `gerente.b@empresa.com` | Gerente | Time B (func. 11–20) |
+| `gerente.c@empresa.com` | Gerente | Time C (func. 21–30) |
+| `funcionario01@empresa.com` … `funcionario30@empresa.com` | Funcionário | Vinculados aos times A/B/C |
 
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/templates` | Templates ativos |
-| GET | `/api/templates/:id` | Template com categorias e perguntas |
-| GET | `/api/evaluations` | Lista paginada |
-| POST | `/api/evaluations` | Criar rascunho |
-| GET | `/api/evaluations/:id` | Detalhe completo |
-| GET | `/api/evaluations/:id/summary` | Resumo calculado |
-| PUT | `/api/evaluations/:id` | Salvar progresso |
-| POST | `/api/evaluations/:id/complete` | Concluir avaliação |
-| DELETE | `/api/evaluations/:id` | Excluir rascunho |
+O seed também cria avaliações concluídas, pendentes e autoavaliações com notas variadas (2–5).
 
-## Credenciais iniciais (seed)
+> Reexecutar `npm run db:seed` **apaga** usuários/colaboradores/times/avaliações e recria o cenário de demonstração (templates são preservados se já existirem).
 
-- **E-mail:** rh@empresa.com
-- **Senha:** admin123
+## API (resumo)
+
+| Prefixo | Descrição |
+|---------|-----------|
+| `/api/auth` | Login e perfil |
+| `/api/dashboard` | Stats por papel |
+| `/api/employees` | Colaboradores (escopo por papel) |
+| `/api/teams` | Times (RH) |
+| `/api/templates` | Templates de avaliação |
+| `/api/evaluations` | Avaliações + `POST /self` (autoavaliação) |
 
 ## Scripts úteis
 
@@ -108,20 +106,21 @@ npm run dev
 | `npm run dev:backend` | Apenas API |
 | `npm run dev:frontend` | Apenas frontend |
 | `npm run db:migrate` | Executa migrations Prisma |
-| `npm run db:seed` | Popula usuário RH e template padrão |
+| `npm run db:seed` | Popula cenário completo de demonstração |
 
-## Funcionalidades implementadas
+## Funcionalidades
 
-- Autenticação JWT
-- CRUD de colaboradores
-- Fluxo de avaliação em etapas (wizard)
-- Dashboard com métricas reais
+- Autenticação JWT + RBAC (RH / Gerente / Funcionário)
+- Times com membros e gerentes
+- Escopo de dados por papel
+- Autoavaliação (`isAutoEvaluation`)
+- Dashboards por papel
+- Wizard de avaliação
+- CRUD de colaboradores e avaliações
 
 ## Deploy em produção
 
 Veja o guia completo em **[DEPLOY.md](./DEPLOY.md)**.
-
-Resumo da arquitetura recomendada:
 
 - **Frontend** → Vercel
 - **Backend** → Railway ou Render

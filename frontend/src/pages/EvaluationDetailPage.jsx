@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import PageHeader from '@/components/PageHeader';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useEvaluation } from '@/hooks/useEvaluations';
 import {
   formatDate,
@@ -28,6 +29,7 @@ import { calculateEvaluationSummary } from '@/utils/evaluationCalculator';
 export default function EvaluationDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { isFuncionario } = usePermissions();
   const { data: evaluation, isLoading, isError } = useEvaluation(id);
 
   if (isLoading) {
@@ -47,10 +49,22 @@ export default function EvaluationDetailPage() {
     evaluation.answers,
   );
 
+  const canContinue =
+    evaluation.status === 'DRAFT' &&
+    (!isFuncionario || evaluation.isAutoEvaluation);
+
+  const editPath = evaluation.isAutoEvaluation
+    ? `/autoavaliacao/${evaluation.id}/edit`
+    : `/avaliacoes/${evaluation.id}/edit`;
+
   return (
     <>
       <PageHeader
-        title="Detalhes da avaliação"
+        title={
+          evaluation.isAutoEvaluation
+            ? 'Detalhes da autoavaliação'
+            : 'Detalhes da avaliação'
+        }
         subtitle={`${evaluation.employee.name} · ${evaluation.period}`}
         action={
           <Stack direction="row" spacing={1}>
@@ -60,11 +74,11 @@ export default function EvaluationDetailPage() {
             >
               Voltar
             </Button>
-            {evaluation.status === 'DRAFT' && (
+            {canContinue && (
               <Button
                 variant="contained"
                 startIcon={<EditIcon />}
-                onClick={() => navigate(`/avaliacoes/${evaluation.id}/edit`)}
+                onClick={() => navigate(editPath)}
               >
                 Continuar
               </Button>
@@ -74,7 +88,7 @@ export default function EvaluationDetailPage() {
       />
 
       <Grid container spacing={2} mb={3}>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Status
@@ -86,7 +100,21 @@ export default function EvaluationDetailPage() {
             />
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
+          <Paper sx={{ p: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Tipo
+            </Typography>
+            <Chip
+              label={
+                evaluation.isAutoEvaluation ? 'Autoavaliação' : 'Gestão'
+              }
+              variant="outlined"
+              sx={{ mt: 1 }}
+            />
+          </Paper>
+        </Grid>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Data
@@ -96,7 +124,7 @@ export default function EvaluationDetailPage() {
             </Typography>
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Nota final
@@ -106,7 +134,7 @@ export default function EvaluationDetailPage() {
             </Typography>
           </Paper>
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12, md: 2.4 }}>
           <Paper sx={{ p: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Classificação

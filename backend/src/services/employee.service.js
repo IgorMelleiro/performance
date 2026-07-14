@@ -1,3 +1,7 @@
+import {
+  assertCanAccessEmployee,
+  buildEmployeeAccessWhere,
+} from '../auth/accessScope.js';
 import prisma from '../config/prisma.js';
 import { AppError } from '../middlewares/errorHandler.js';
 
@@ -50,17 +54,20 @@ function mapEmployee(employee) {
   };
 }
 
-export async function listEmployees({
-  page = 1,
-  limit = 10,
-  search,
-  department,
-  active,
-}) {
+export async function listEmployees(
+  { page = 1, limit = 10, search, department, active },
+  user,
+) {
   const safePage = Math.max(Number(page) || 1, 1);
   const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 50);
   const skip = (safePage - 1) * safeLimit;
-  const where = buildWhere({ search, department, active });
+  const accessWhere = await buildEmployeeAccessWhere(user);
+  const filtersWhere = buildWhere({ search, department, active });
+  const where = {
+    AND: [accessWhere, filtersWhere].filter(
+      (clause) => Object.keys(clause).length > 0,
+    ),
+  };
 
   const [employees, total, departments] = await Promise.all([
     prisma.employee.findMany({
@@ -84,6 +91,7 @@ export async function listEmployees({
     }),
     prisma.employee.count({ where }),
     prisma.employee.findMany({
+      where: accessWhere,
       distinct: ['department'],
       select: { department: true },
       orderBy: { department: 'asc' },
@@ -102,7 +110,7 @@ export async function listEmployees({
   };
 }
 
-export async function getEmployeeById(id) {
+export async function getEmployeeById(id, user) {
   const employee = await prisma.employee.findUnique({
     where: { id },
     include: {
@@ -124,10 +132,12 @@ export async function getEmployeeById(id) {
     throw new AppError('Colaborador não encontrado.', 404);
   }
 
+  await assertCanAccessEmployee(user, id);
+
   return mapEmployee(employee);
 }
 
-export async function getEmployeeHistory(id) {
+export async function getEmployeeHistory(id, user) {
   const employee = await prisma.employee.findUnique({
     where: { id },
     select: { id: true, name: true },
@@ -136,6 +146,8 @@ export async function getEmployeeHistory(id) {
   if (!employee) {
     throw new AppError('Colaborador não encontrado.', 404);
   }
+
+  await assertCanAccessEmployee(user, id);
 
   const evaluations = await prisma.evaluation.findMany({
     where: { employeeId: id },
@@ -147,6 +159,7 @@ export async function getEmployeeHistory(id) {
       status: true,
       finalScore: true,
       classification: true,
+      isAutoEvaluation: true,
       template: {
         select: { name: true },
       },
@@ -178,7 +191,10 @@ export async function createEmployee(data) {
 }
 
 export async function updateEmployee(id, data) {
-  await getEmployeeById(id);
+  const existing = await prisma.employee.findUnique({ where: { id } });
+  if (!existing) {
+    throw new AppError('Colaborador não encontrado.', 404);
+  }
 
   const employee = await prisma.employee.update({
     where: { id },

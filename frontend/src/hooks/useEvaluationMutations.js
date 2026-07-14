@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   completeEvaluation,
   createEvaluation,
+  createSelfEvaluation,
   deleteEvaluation,
   updateEvaluation,
 } from '@/services/evaluationService';
@@ -23,6 +24,15 @@ export function useEvaluationMutations({ onSuccess, onError }) {
     onError,
   });
 
+  const createSelfMutation = useMutation({
+    mutationFn: createSelfEvaluation,
+    onSuccess: (data) => {
+      invalidateEvaluations();
+      onSuccess?.('Autoavaliação iniciada com sucesso.', data);
+    },
+    onError,
+  });
+
   const updateMutation = useMutation({
     mutationFn: updateEvaluation,
     onSuccess: (data) => {
@@ -37,7 +47,12 @@ export function useEvaluationMutations({ onSuccess, onError }) {
     mutationFn: completeEvaluation,
     onSuccess: (data) => {
       invalidateEvaluations();
-      onSuccess?.('Avaliação concluída com sucesso.', data);
+      onSuccess?.(
+        data.isAutoEvaluation
+          ? 'Autoavaliação concluída com sucesso.'
+          : 'Avaliação concluída com sucesso.',
+        data,
+      );
     },
     onError,
   });
@@ -53,6 +68,7 @@ export function useEvaluationMutations({ onSuccess, onError }) {
 
   return {
     createMutation,
+    createSelfMutation,
     updateMutation,
     completeMutation,
     deleteMutation,

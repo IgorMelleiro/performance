@@ -29,8 +29,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import PageHeader, { EmptyState } from '@/components/PageHeader';
+import { PERMISSIONS } from '@/auth/permissions';
 import { useEvaluationMutations } from '@/hooks/useEvaluationMutations';
 import { useEvaluations } from '@/hooks/useEvaluations';
+import { usePermissions } from '@/hooks/usePermissions';
 import {
   formatDate,
   formatEvaluationStatus,
@@ -45,6 +47,43 @@ const initialFilters = {
 
 export default function EvaluationsPage() {
   const navigate = useNavigate();
+  const { can, canAny, isFuncionario, isGerente } = usePermissions();
+  const canCreateManager = canAny([
+    PERMISSIONS.EVALUATIONS_CREATE,
+    PERMISSIONS.EVALUATIONS_CREATE_TEAM,
+  ]);
+  const canCreateSelf = can(PERMISSIONS.EVALUATIONS_CREATE_SELF);
+  const canDelete = can(PERMISSIONS.EVALUATIONS_DELETE);
+  const canEditDraft = canAny([
+    PERMISSIONS.EVALUATIONS_UPDATE,
+    PERMISSIONS.EVALUATIONS_UPDATE_TEAM,
+    PERMISSIONS.EVALUATIONS_UPDATE_SELF,
+  ]);
+
+  const pageTitle = isFuncionario ? 'Minhas Avaliações' : 'Avaliações';
+  const pageSubtitle = isFuncionario
+    ? 'Histórico das suas avaliações e autoavaliações.'
+    : isGerente
+      ? 'Avaliações dos colaboradores dos seus times.'
+      : 'Consulte, continue rascunhos ou crie novas avaliações.';
+
+  const headerAction = canCreateManager ? (
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={() => navigate('/avaliacoes/nova')}
+    >
+      Nova avaliação
+    </Button>
+  ) : canCreateSelf ? (
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={() => navigate('/autoavaliacao')}
+    >
+      Nova autoavaliação
+    </Button>
+  ) : null;
   const [filters, setFilters] = useState(initialFilters);
   const [searchInput, setSearchInput] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -99,17 +138,9 @@ export default function EvaluationsPage() {
   return (
     <>
       <PageHeader
-        title="Avaliações"
-        subtitle="Consulte, continue rascunhos ou crie novas avaliações."
-        action={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate('/avaliacoes/nova')}
-          >
-            Nova avaliação
-          </Button>
-        }
+        title={pageTitle}
+        subtitle={pageSubtitle}
+        action={headerAction}
       />
 
       {isError && (
@@ -121,7 +152,13 @@ export default function EvaluationsPage() {
       {showEmptyState ? (
         <EmptyState
           title="Nenhuma avaliação encontrada"
-          description="Crie a primeira avaliação de performance."
+          description={
+            canCreateManager || canCreateSelf
+              ? canCreateSelf && !canCreateManager
+                ? 'Inicie sua autoavaliação para registrar seu desempenho.'
+                : 'Crie a primeira avaliação de performance.'
+              : 'Ainda não há avaliações no seu escopo.'
+          }
         />
       ) : (
         <>
@@ -164,6 +201,7 @@ export default function EvaluationsPage() {
                     <TableCell>Período</TableCell>
                     <TableCell>Data</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Tipo</TableCell>
                     <TableCell>Nota final</TableCell>
                     <TableCell>Classificação</TableCell>
                     <TableCell align="right">Ações</TableCell>
@@ -172,7 +210,7 @@ export default function EvaluationsPage() {
                 <TableBody>
                   {isLoading && (
                     <TableRow>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={8}>
                         <Typography color="text.secondary">
                           Carregando avaliações...
                         </Typography>
@@ -182,7 +220,7 @@ export default function EvaluationsPage() {
 
                   {!isLoading && evaluations.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7}>
+                      <TableCell colSpan={8}>
                         <Typography color="text.secondary">
                           Nenhuma avaliação encontrada.
                         </Typography>
@@ -191,52 +229,74 @@ export default function EvaluationsPage() {
                   )}
 
                   {!isLoading &&
-                    evaluations.map((evaluation) => (
-                      <TableRow key={evaluation.id} hover>
-                        <TableCell>{evaluation.employee.name}</TableCell>
-                        <TableCell>{evaluation.period}</TableCell>
-                        <TableCell>{formatDate(evaluation.evaluatedAt)}</TableCell>
-                        <TableCell>
-                          <Chip
-                            size="small"
-                            label={formatEvaluationStatus(evaluation.status)}
-                            color={
-                              evaluation.status === 'COMPLETED'
-                                ? 'success'
-                                : 'warning'
-                            }
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {evaluation.finalScore?.toFixed(2) ?? '—'}
-                        </TableCell>
-                        <TableCell>{evaluation.classification ?? '—'}</TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" justifyContent="flex-end">
-                            <Tooltip title="Visualizar">
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  navigate(`/avaliacoes/${evaluation.id}`)
-                                }
-                              >
-                                <VisibilityIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            {evaluation.status === 'DRAFT' && (
-                              <>
+                    evaluations.map((evaluation) => {
+                      const canEditThisDraft =
+                        canEditDraft &&
+                        evaluation.status === 'DRAFT' &&
+                        (!isFuncionario || evaluation.isAutoEvaluation);
+
+                      const editPath = evaluation.isAutoEvaluation
+                        ? `/autoavaliacao/${evaluation.id}/edit`
+                        : `/avaliacoes/${evaluation.id}/edit`;
+
+                      return (
+                        <TableRow key={evaluation.id} hover>
+                          <TableCell>{evaluation.employee.name}</TableCell>
+                          <TableCell>{evaluation.period}</TableCell>
+                          <TableCell>
+                            {formatDate(evaluation.evaluatedAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={formatEvaluationStatus(evaluation.status)}
+                              color={
+                                evaluation.status === 'COMPLETED'
+                                  ? 'success'
+                                  : 'warning'
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={
+                                evaluation.isAutoEvaluation
+                                  ? 'Autoavaliação'
+                                  : 'Gestão'
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {evaluation.finalScore?.toFixed(2) ?? '—'}
+                          </TableCell>
+                          <TableCell>
+                            {evaluation.classification ?? '—'}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Stack direction="row" justifyContent="flex-end">
+                              <Tooltip title="Visualizar">
+                                <IconButton
+                                  size="small"
+                                  onClick={() =>
+                                    navigate(`/avaliacoes/${evaluation.id}`)
+                                  }
+                                >
+                                  <VisibilityIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              {canEditThisDraft && (
                                 <Tooltip title="Continuar">
                                   <IconButton
                                     size="small"
-                                    onClick={() =>
-                                      navigate(
-                                        `/avaliacoes/${evaluation.id}/edit`,
-                                      )
-                                    }
+                                    onClick={() => navigate(editPath)}
                                   >
                                     <EditIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
+                              )}
+                              {canDelete && evaluation.status === 'DRAFT' && (
                                 <Tooltip title="Excluir rascunho">
                                   <IconButton
                                     size="small"
@@ -246,12 +306,12 @@ export default function EvaluationsPage() {
                                     <DeleteIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
-                              </>
-                            )}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -278,19 +338,21 @@ export default function EvaluationsPage() {
         </>
       )}
 
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Excluir rascunho"
-        description={`Deseja excluir o rascunho de ${deleteTarget?.employee.name ?? 'esta avaliação'}?`}
-        confirmLabel="Excluir"
-        loading={deleteMutation.isPending}
-        onClose={() => {
-          if (!deleteMutation.isPending) {
-            setDeleteTarget(null);
-          }
-        }}
-        onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
-      />
+      {canDelete && (
+        <ConfirmDialog
+          open={Boolean(deleteTarget)}
+          title="Excluir rascunho"
+          description={`Deseja excluir o rascunho de ${deleteTarget?.employee.name ?? 'esta avaliação'}?`}
+          confirmLabel="Excluir"
+          loading={deleteMutation.isPending}
+          onClose={() => {
+            if (!deleteMutation.isPending) {
+              setDeleteTarget(null);
+            }
+          }}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        />
+      )}
 
       <Snackbar
         open={snackbar.open}

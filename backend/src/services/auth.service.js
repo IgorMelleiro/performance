@@ -24,14 +24,14 @@ export async function login({ email, password }) {
     role: user.role,
   });
 
+  const employee = await prisma.employee.findUnique({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+
   return {
     token,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    user: serializeUser(user, employee?.id ?? null),
   };
 }
 
@@ -44,6 +44,9 @@ export async function getProfile(userId) {
       email: true,
       role: true,
       createdAt: true,
+      employee: {
+        select: { id: true },
+      },
     },
   });
 
@@ -51,5 +54,16 @@ export async function getProfile(userId) {
     throw new AppError('Usuário não encontrado.', 404);
   }
 
-  return user;
+  return serializeUser(user, user.employee?.id ?? null);
+}
+
+function serializeUser(user, employeeId) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    employeeId,
+    ...(user.createdAt ? { createdAt: user.createdAt } : {}),
+  };
 }

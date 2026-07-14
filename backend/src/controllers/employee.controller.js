@@ -33,7 +33,7 @@ function validateEmployeePayload(body, { partial = false } = {}) {
 
 export async function list(req, res, next) {
   try {
-    const result = await employeeService.listEmployees(req.query);
+    const result = await employeeService.listEmployees(req.query, req.user);
     res.json(result);
   } catch (error) {
     next(error);
@@ -42,7 +42,10 @@ export async function list(req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const employee = await employeeService.getEmployeeById(req.params.id);
+    const employee = await employeeService.getEmployeeById(
+      req.params.id,
+      req.user,
+    );
     res.json(employee);
   } catch (error) {
     next(error);
@@ -51,7 +54,10 @@ export async function getById(req, res, next) {
 
 export async function getHistory(req, res, next) {
   try {
-    const history = await employeeService.getEmployeeHistory(req.params.id);
+    const history = await employeeService.getEmployeeHistory(
+      req.params.id,
+      req.user,
+    );
     res.json(history);
   } catch (error) {
     next(error);
@@ -71,7 +77,10 @@ export async function create(req, res, next) {
 export async function update(req, res, next) {
   try {
     validateEmployeePayload(req.body, { partial: true });
-    const employee = await employeeService.updateEmployee(req.params.id, req.body);
+    const employee = await employeeService.updateEmployee(
+      req.params.id,
+      req.body,
+    );
     res.json(employee);
   } catch (error) {
     next(error);

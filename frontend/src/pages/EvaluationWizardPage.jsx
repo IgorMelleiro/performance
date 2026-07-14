@@ -8,13 +8,14 @@ import {
   Stack,
 } from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import CategoryStep from '@/components/evaluations/steps/CategoryStep';
 import FeedbackStep from '@/components/evaluations/steps/FeedbackStep';
 import SetupStep from '@/components/evaluations/steps/SetupStep';
 import SummaryStep from '@/components/evaluations/steps/SummaryStep';
 import WizardProgress from '@/components/evaluations/WizardProgress';
 import PageHeader from '@/components/PageHeader';
+import { useAuthStore } from '@/store/authStore';
 import { useEvaluationMutations } from '@/hooks/useEvaluationMutations';
 import { useEvaluation, useTemplate, useTemplates } from '@/hooks/useEvaluations';
 import { useEmployees } from '@/hooks/useEmployees';
@@ -37,10 +38,17 @@ function buildPayload(formData) {
   };
 }
 
-export default function EvaluationWizardPage() {
+export default function EvaluationWizardPage({ mode: modeProp }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const isEditing = Boolean(id);
+  const mode =
+    modeProp ||
+    (location.pathname.startsWith('/autoavaliacao') ? 'self' : 'manager');
+  const isSelfMode = mode === 'self';
+
+  const user = useAuthStore((state) => state.user);
   const [stepError, setStepError] = useState('');
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -80,15 +88,22 @@ export default function EvaluationWizardPage() {
   );
 
   const employees = employeesData?.data ?? [];
-  const selectedEmployee = employees.find(
-    (employee) => employee.id === formData.employeeId,
-  );
+  const selectedEmployee =
+    employees.find((employee) => employee.id === formData.employeeId) ||
+    existingEvaluation?.employee;
+
+  const listPath = isSelfMode ? '/avaliacoes' : '/avaliacoes';
 
   useEffect(() => {
     if (isEditing && existingEvaluation) {
+      if (isSelfMode && !existingEvaluation.isAutoEvaluation) {
+        setStepError('Esta avaliação não é uma autoavaliação.');
+        return;
+      }
+
       loadEvaluation(existingEvaluation);
     }
-  }, [isEditing, existingEvaluation, loadEvaluation]);
+  }, [isEditing, existingEvaluation, loadEvaluation, isSelfMode]);
 
   useEffect(() => {
     if (!isEditing) {
@@ -97,6 +112,16 @@ export default function EvaluationWizardPage() {
   }, [isEditing, reset]);
 
   useEffect(() => () => reset(), [reset]);
+
+  useEffect(() => {
+    if (!isSelfMode || isEditing || formData.employeeId) {
+      return;
+    }
+
+    if (user?.employeeId) {
+      updateFormData({ employeeId: user.employeeId });
+    }
+  }, [isSelfMode, isEditing, formData.employeeId, user?.employeeId, updateFormData]);
 
   useEffect(() => {
     if (template) {
@@ -165,26 +190,51 @@ export default function EvaluationWizardPage() {
     showSnackbar(message, 'error');
   };
 
-  const { createMutation, updateMutation, completeMutation } =
-    useEvaluationMutations({
-      onSuccess: (message, data) => {
-        if (data?.id) {
-          setEvaluationId(data.id);
-        }
+  const {
+    createMutation,
+    createSelfMutation,
+    updateMutation,
+    completeMutation,
+  } = useEvaluationMutations({
+    onSuccess: (message, data) => {
+      if (data?.id) {
+        setEvaluationId(data.id);
+      }
 
-        if (message.includes('concluída')) {
-          navigate(`/avaliacoes/${data.id}`);
-          return;
-        }
+      if (message.includes('concluída')) {
+        navigate(`/avaliacoes/${data.id}`);
+        return;
+      }
 
-        showSnackbar(message);
-      },
-      onError: handleMutationError,
+      showSnackbar(message);
+    },
+    onError: handleMutationError,
+  });
+
+  const createDraft = async () => {
+    if (isSelfMode) {
+      return createSelfMutation.mutateAsync({
+        templateId: formData.templateId,
+        period: formData.period,
+        evaluatedAt: formData.evaluatedAt,
+      });
+    }
+
+    return createMutation.mutateAsync({
+      employeeId: formData.employeeId,
+      templateId: formData.templateId,
+      period: formData.period,
+      evaluatedAt: formData.evaluatedAt,
     });
+  };
 
   const validateSetupStep = () => {
-    if (!formData.employeeId) {
+    if (!isSelfMode && !formData.employeeId) {
       return 'Selecione um colaborador.';
+    }
+
+    if (isSelfMode && !user?.employeeId && !formData.employeeId) {
+      return 'Sua conta não está vinculada a um colaborador. Solicite ao RH.';
     }
 
     if (!formData.templateId) {
@@ -229,13 +279,7 @@ export default function EvaluationWizardPage() {
     const currentEvaluationId = evaluationId || id;
 
     if (!currentEvaluationId) {
-      const created = await createMutation.mutateAsync({
-        employeeId: formData.employeeId,
-        templateId: formData.templateId,
-        period: formData.period,
-        evaluatedAt: formData.evaluatedAt,
-      });
-
+      const created = await createDraft();
       setEvaluationId(created.id);
       setTemplate(created.template);
       await updateMutation.mutateAsync({ id: created.id, ...payload });
@@ -267,12 +311,7 @@ export default function EvaluationWizardPage() {
 
       try {
         if (!evaluationId && !id) {
-          const created = await createMutation.mutateAsync({
-            employeeId: formData.employeeId,
-            templateId: formData.templateId,
-            period: formData.period,
-            evaluatedAt: formData.evaluatedAt,
-          });
+          const created = await createDraft();
           setEvaluationId(created.id);
           setTemplate(created.template);
         } else {
@@ -333,6 +372,7 @@ export default function EvaluationWizardPage() {
 
   const isSaving =
     createMutation.isPending ||
+    createSelfMutation.isPending ||
     updateMutation.isPending ||
     completeMutation.isPending;
 
@@ -348,20 +388,54 @@ export default function EvaluationWizardPage() {
     return <Alert severity="error">Avaliação não encontrada.</Alert>;
   }
 
+  if (
+    isEditing &&
+    isSelfMode &&
+    existingEvaluation &&
+    !existingEvaluation.isAutoEvaluation
+  ) {
+    return (
+      <Alert severity="error">
+        Esta avaliação não é uma autoavaliação.
+      </Alert>
+    );
+  }
+
   if (isEditing && existingEvaluation?.status === 'COMPLETED') {
     navigate(`/avaliacoes/${existingEvaluation.id}`, { replace: true });
     return null;
   }
 
+  if (isSelfMode && !isEditing && !user?.employeeId) {
+    return (
+      <Alert severity="warning">
+        Sua conta ainda não está vinculada a um colaborador. Solicite ao RH para
+        realizar a autoavaliação.
+      </Alert>
+    );
+  }
+
   return (
     <>
       <PageHeader
-        title={isEditing ? 'Continuar avaliação' : 'Nova avaliação'}
-        subtitle="Preencha o wizard em etapas. O progresso é salvo automaticamente."
+        title={
+          isSelfMode
+            ? isEditing
+              ? 'Continuar autoavaliação'
+              : 'Nova autoavaliação'
+            : isEditing
+              ? 'Continuar avaliação'
+              : 'Nova avaliação'
+        }
+        subtitle={
+          isSelfMode
+            ? 'Preencha suas respostas. O progresso é salvo automaticamente.'
+            : 'Preencha o wizard em etapas. O progresso é salvo automaticamente.'
+        }
         action={
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/avaliacoes')}
+            onClick={() => navigate(listPath)}
           >
             Voltar
           </Button>
@@ -380,6 +454,7 @@ export default function EvaluationWizardPage() {
 
       {isSetupStep && (
         <SetupStep
+          mode={mode}
           employees={employees}
           templates={templates}
           formData={formData}
@@ -403,6 +478,7 @@ export default function EvaluationWizardPage() {
 
       {isFeedbackStep && (
         <FeedbackStep
+          mode={mode}
           finalFeedback={formData.finalFeedback}
           onChange={setFinalFeedback}
           error={stepError}
@@ -418,7 +494,7 @@ export default function EvaluationWizardPage() {
         />
       )}
 
-      <Stack direction="row" justifyContent="space-between" mt={3} sx={{ mt: 2 }}>
+      <Stack direction="row" justifyContent="space-between" mt={3}>
         <Button disabled={currentStep === 0 || isSaving} onClick={handleBack}>
           Anterior
         </Button>
@@ -436,6 +512,8 @@ export default function EvaluationWizardPage() {
           >
             {isSaving ? (
               <CircularProgress size={24} color="inherit" />
+            ) : isSelfMode ? (
+              'Salvar autoavaliação'
             ) : (
               'Salvar avaliação'
             )}

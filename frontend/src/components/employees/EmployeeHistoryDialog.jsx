@@ -68,6 +68,7 @@ export default function EmployeeHistoryDialog({ open, employee, onClose }) {
               <TableRow>
                 <TableCell>Período</TableCell>
                 <TableCell>Data</TableCell>
+                <TableCell>Tipo</TableCell>
                 <TableCell>Template</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Nota</TableCell>
@@ -79,6 +80,15 @@ export default function EmployeeHistoryDialog({ open, employee, onClose }) {
                 <TableRow key={evaluation.id} hover>
                   <TableCell>{evaluation.period}</TableCell>
                   <TableCell>{formatDate(evaluation.evaluatedAt)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={
+                        evaluation.isAutoEvaluation ? 'Autoavaliação' : 'Gestão'
+                      }
+                    />
+                  </TableCell>
                   <TableCell>{evaluation.template.name}</TableCell>
                   <TableCell>
                     <Chip

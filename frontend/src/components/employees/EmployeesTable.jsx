@@ -24,6 +24,8 @@ export default function EmployeesTable({
   limit,
   total,
   loading,
+  canEdit = true,
+  canDelete = true,
   onPageChange,
   onRowsPerPageChange,
   onEdit,
@@ -91,23 +93,27 @@ export default function EmployeesTable({
                           <HistoryIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Editar">
-                        <IconButton
-                          size="small"
-                          onClick={() => onEdit(employee)}
-                        >
-                          <EditOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Excluir">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => onDelete(employee)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+                      {canEdit && (
+                        <Tooltip title="Editar">
+                          <IconButton
+                            size="small"
+                            onClick={() => onEdit(employee)}
+                          >
+                            <EditOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {canDelete && (
+                        <Tooltip title="Excluir">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => onDelete(employee)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Stack>
                   </TableCell>
                 </TableRow>

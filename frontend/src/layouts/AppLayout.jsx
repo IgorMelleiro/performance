@@ -14,18 +14,40 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PeopleIcon from '@mui/icons-material/People';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
+import GroupsIcon from '@mui/icons-material/Groups';
+import DescriptionIcon from '@mui/icons-material/Description';
+import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { ROLE_LABELS, ROLES } from '@/auth/roles';
+import { usePermissions } from '@/hooks/usePermissions';
 import { useLayoutStore } from '@/store/layoutStore';
 import { useAuthStore } from '@/store/authStore';
 
 const drawerWidth = 260;
 
-const menuItems = [
-  { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
-  { label: 'Colaboradores', path: '/colaboradores', icon: <PeopleIcon /> },
-  { label: 'Avaliações', path: '/avaliacoes', icon: <AssignmentIcon /> },
-];
+const MENUS_BY_ROLE = {
+  [ROLES.RH]: [
+    { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+    { label: 'Colaboradores', path: '/colaboradores', icon: <PeopleIcon /> },
+    { label: 'Times', path: '/times', icon: <GroupsIcon /> },
+    { label: 'Avaliações', path: '/avaliacoes', icon: <AssignmentIcon /> },
+    { label: 'Templates', path: '/templates', icon: <DescriptionIcon /> },
+    { label: 'Configurações', path: '/configuracoes', icon: <SettingsIcon /> },
+  ],
+  [ROLES.GERENTE]: [
+    { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+    { label: 'Minha Equipe', path: '/colaboradores', icon: <PeopleIcon /> },
+    { label: 'Avaliações', path: '/avaliacoes', icon: <AssignmentIcon /> },
+  ],
+  [ROLES.FUNCIONARIO]: [
+    { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+    { label: 'Minhas Avaliações', path: '/avaliacoes', icon: <AssignmentIcon /> },
+    { label: 'Autoavaliação', path: '/autoavaliacao', icon: <AssignmentIndIcon /> },
+    { label: 'Meu Perfil', path: '/colaboradores', icon: <PeopleIcon /> },
+  ],
+};
 
 export default function AppLayout({ children }) {
   const navigate = useNavigate();
@@ -33,6 +55,9 @@ export default function AppLayout({ children }) {
   const toggleSidebar = useLayoutStore((state) => state.toggleSidebar);
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const { role } = usePermissions();
+
+  const menuItems = MENUS_BY_ROLE[role] || MENUS_BY_ROLE[ROLES.RH];
 
   const handleLogout = () => {
     clearAuth();
@@ -58,7 +83,8 @@ export default function AppLayout({ children }) {
             Avaliação de Performance
           </Typography>
           <Typography variant="body2" sx={{ mr: 2 }}>
-            {user?.name || 'RH'}
+            {user?.name || 'Usuário'}
+            {user?.role ? ` · ${ROLE_LABELS[user.role] || user.role}` : ''}
           </Typography>
           <IconButton color="inherit" onClick={handleLogout}>
             <LogoutIcon />
@@ -82,7 +108,7 @@ export default function AppLayout({ children }) {
         <List>
           {menuItems.map((item) => (
             <ListItemButton
-              key={item.path}
+              key={`${item.path}-${item.label}`}
               component={NavLink}
               to={item.path}
               end={item.path === '/'}

@@ -20,6 +20,11 @@ export async function createEvaluation(payload) {
   return data;
 }
 
+export async function createSelfEvaluation(payload) {
+  const { data } = await api.post('/evaluations/self', payload);
+  return data;
+}
+
 export async function updateEvaluation({ id, ...payload }) {
   const { data } = await api.put(`/evaluations/${id}`, payload);
   return data;

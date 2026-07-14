@@ -7,8 +7,10 @@ import EmployeeHistoryDialog from '@/components/employees/EmployeeHistoryDialog'
 import EmployeesTable from '@/components/employees/EmployeesTable';
 import EmployeesToolbar from '@/components/employees/EmployeesToolbar';
 import PageHeader, { EmptyState } from '@/components/PageHeader';
+import { PERMISSIONS } from '@/auth/permissions';
 import { useEmployeeMutations } from '@/hooks/useEmployeeMutations';
 import { useEmployees } from '@/hooks/useEmployees';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const initialFilters = {
   search: '',
@@ -19,13 +21,33 @@ const initialFilters = {
 };
 
 export default function EmployeesPage() {
+  const { can, isGerente, isFuncionario } = usePermissions();
+  const canCreate = can(PERMISSIONS.EMPLOYEES_CREATE);
+  const canEdit = can(PERMISSIONS.EMPLOYEES_UPDATE);
+  const canDelete = can(PERMISSIONS.EMPLOYEES_DELETE);
+
+  const pageTitle = isFuncionario
+    ? 'Meu Perfil'
+    : isGerente
+      ? 'Minha Equipe'
+      : 'Colaboradores';
+  const pageSubtitle = isFuncionario
+    ? 'Visualize seus dados e histórico de avaliações.'
+    : isGerente
+      ? 'Colaboradores dos times sob sua gestão.'
+      : 'Gerencie os colaboradores da empresa.';
+
   const [filters, setFilters] = useState(initialFilters);
   const [searchInput, setSearchInput] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
   const [formError, setFormError] = useState('');
 
   const { data, isLoading, isError } = useEmployees(filters);
@@ -131,12 +153,18 @@ export default function EmployeesPage() {
   return (
     <>
       <PageHeader
-        title="Colaboradores"
-        subtitle="Gerencie os colaboradores da empresa."
+        title={pageTitle}
+        subtitle={pageSubtitle}
         action={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateDialog}>
-            Novo colaborador
-          </Button>
+          canCreate ? (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openCreateDialog}
+            >
+              Novo colaborador
+            </Button>
+          ) : null
         }
       />
 
@@ -148,8 +176,20 @@ export default function EmployeesPage() {
 
       {showEmptyState ? (
         <EmptyState
-          title="Nenhum colaborador cadastrado"
-          description="Cadastre o primeiro colaborador para iniciar as avaliações."
+          title={
+            isGerente
+              ? 'Nenhum colaborador nos seus times'
+              : isFuncionario
+                ? 'Perfil não vinculado'
+                : 'Nenhum colaborador cadastrado'
+          }
+          description={
+            isGerente
+              ? 'Peça ao RH para adicionar colaboradores aos times sob sua gestão.'
+              : isFuncionario
+                ? 'Sua conta ainda não está vinculada a um colaborador.'
+                : 'Cadastre o primeiro colaborador para iniciar as avaliações.'
+          }
         />
       ) : (
         <>
@@ -172,6 +212,8 @@ export default function EmployeesPage() {
             limit={filters.limit}
             total={meta?.total ?? 0}
             loading={isLoading}
+            canEdit={canEdit}
+            canDelete={canDelete}
             onPageChange={(page) => handleFilterChange({ page })}
             onRowsPerPageChange={(limit) =>
               handleFilterChange({ limit, page: 1 })
@@ -183,19 +225,21 @@ export default function EmployeesPage() {
         </>
       )}
 
-      <EmployeeFormDialog
-        open={formOpen}
-        employee={selectedEmployee}
-        loading={isSaving}
-        onClose={() => {
-          if (!isSaving) {
-            setFormOpen(false);
-            setSelectedEmployee(null);
-            setFormError('');
-          }
-        }}
-        onSubmit={handleFormSubmit}
-      />
+      {(canCreate || canEdit) && (
+        <EmployeeFormDialog
+          open={formOpen}
+          employee={selectedEmployee}
+          loading={isSaving}
+          onClose={() => {
+            if (!isSaving) {
+              setFormOpen(false);
+              setSelectedEmployee(null);
+              setFormError('');
+            }
+          }}
+          onSubmit={handleFormSubmit}
+        />
+      )}
 
       {formError && formOpen && (
         <Snackbar
@@ -219,20 +263,22 @@ export default function EmployeesPage() {
         }}
       />
 
-      <ConfirmDialog
-        open={deleteOpen}
-        title="Excluir colaborador"
-        description={`Deseja excluir ${selectedEmployee?.name ?? 'este colaborador'}? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir"
-        loading={isDeleting}
-        onClose={() => {
-          if (!isDeleting) {
-            setDeleteOpen(false);
-            setSelectedEmployee(null);
-          }
-        }}
-        onConfirm={handleDeleteConfirm}
-      />
+      {canDelete && (
+        <ConfirmDialog
+          open={deleteOpen}
+          title="Excluir colaborador"
+          description={`Deseja excluir ${selectedEmployee?.name ?? 'este colaborador'}? Esta ação não pode ser desfeita.`}
+          confirmLabel="Excluir"
+          loading={isDeleting}
+          onClose={() => {
+            if (!isDeleting) {
+              setDeleteOpen(false);
+              setSelectedEmployee(null);
+            }
+          }}
+          onConfirm={handleDeleteConfirm}
+        />
+      )}
 
       <Snackbar
         open={snackbar.open}

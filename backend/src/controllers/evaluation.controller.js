@@ -3,7 +3,7 @@ import { AppError } from '../middlewares/errorHandler.js';
 
 export async function list(req, res, next) {
   try {
-    const result = await evaluationService.listEvaluations(req.query);
+    const result = await evaluationService.listEvaluations(req.query, req.user);
     res.json(result);
   } catch (error) {
     next(error);
@@ -12,7 +12,10 @@ export async function list(req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const evaluation = await evaluationService.getEvaluationById(req.params.id);
+    const evaluation = await evaluationService.getEvaluationById(
+      req.params.id,
+      req.user,
+    );
     res.json(evaluation);
   } catch (error) {
     next(error);
@@ -21,7 +24,10 @@ export async function getById(req, res, next) {
 
 export async function getSummary(req, res, next) {
   try {
-    const summary = await evaluationService.getEvaluationSummary(req.params.id);
+    const summary = await evaluationService.getEvaluationSummary(
+      req.params.id,
+      req.user,
+    );
     res.json(summary);
   } catch (error) {
     next(error);
@@ -41,7 +47,26 @@ export async function create(req, res, next) {
 
     const evaluation = await evaluationService.createEvaluation(
       { employeeId, templateId, period, evaluatedAt },
-      req.user.id,
+      req.user,
+    );
+
+    res.status(201).json(evaluation);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function createSelf(req, res, next) {
+  try {
+    const { templateId, period, evaluatedAt } = req.body;
+
+    if (!period?.trim()) {
+      throw new AppError('Período avaliado é obrigatório.', 400);
+    }
+
+    const evaluation = await evaluationService.createSelfEvaluation(
+      { templateId, period, evaluatedAt },
+      req.user,
     );
 
     res.status(201).json(evaluation);
@@ -55,6 +80,7 @@ export async function update(req, res, next) {
     const evaluation = await evaluationService.updateEvaluation(
       req.params.id,
       req.body,
+      req.user,
     );
     res.json(evaluation);
   } catch (error) {
@@ -64,7 +90,10 @@ export async function update(req, res, next) {
 
 export async function complete(req, res, next) {
   try {
-    const evaluation = await evaluationService.completeEvaluation(req.params.id);
+    const evaluation = await evaluationService.completeEvaluation(
+      req.params.id,
+      req.user,
+    );
     res.json(evaluation);
   } catch (error) {
     next(error);
@@ -73,7 +102,10 @@ export async function complete(req, res, next) {
 
 export async function remove(req, res, next) {
   try {
-    const result = await evaluationService.deleteEvaluation(req.params.id);
+    const result = await evaluationService.deleteEvaluation(
+      req.params.id,
+      req.user,
+    );
     res.json(result);
   } catch (error) {
     next(error);

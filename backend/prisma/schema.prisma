@@ -8,7 +8,8 @@ datasource db {
 
 enum UserRole {
   RH
-  ADMIN
+  GERENTE
+  FUNCIONARIO
 }
 
 enum EvaluationStatus {
@@ -24,7 +25,10 @@ model User {
   role      UserRole @default(RH)
   createdAt DateTime @default(now())
 
-  evaluations Evaluation[] @relation("EvaluatorEvaluations")
+  employee         Employee?      @relation("UserEmployee")
+  evaluations      Evaluation[]   @relation("EvaluatorEvaluations")
+  managedTeams     TeamManager[]
+  teamMemberships  TeamMember[]
 }
 
 model Employee {
@@ -33,9 +37,56 @@ model Employee {
   position   String
   department String
   active     Boolean  @default(true)
+  userId     String?  @unique
   createdAt  DateTime @default(now())
 
-  evaluations Evaluation[]
+  user            User?        @relation("UserEmployee", fields: [userId], references: [id], onDelete: SetNull)
+  evaluations     Evaluation[]
+  teamMemberships TeamMember[]
+
+  @@index([userId])
+}
+
+model Team {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members  TeamMember[]
+  managers TeamManager[]
+}
+
+model TeamMember {
+  id         String   @id @default(uuid())
+  teamId     String
+  employeeId String
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([teamId, employeeId])
+  @@index([teamId])
+  @@index([employeeId])
+  @@index([userId])
+}
+
+model TeamManager {
+  id        String   @id @default(uuid())
+  teamId    String
+  managerId String
+  createdAt DateTime @default(now())
+
+  team    Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  manager User @relation(fields: [managerId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, managerId])
+  @@index([teamId])
+  @@index([managerId])
 }
 
 model EvaluationTemplate {
@@ -75,17 +126,18 @@ model EvaluationQuestion {
 }
 
 model Evaluation {
-  id             String           @id @default(uuid())
-  employeeId     String
-  templateId     String
-  evaluatorId    String
-  period         String
-  evaluatedAt    DateTime         @default(now())
-  status         EvaluationStatus @default(DRAFT)
-  finalScore     Float?
-  classification String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id                String           @id @default(uuid())
+  employeeId        String
+  templateId        String
+  evaluatorId       String
+  period            String
+  evaluatedAt       DateTime         @default(now())
+  status            EvaluationStatus @default(DRAFT)
+  isAutoEvaluation  Boolean          @default(false)
+  finalScore        Float?
+  classification    String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   employee         Employee           @relation(fields: [employeeId], references: [id])
   template         EvaluationTemplate @relation(fields: [templateId], references: [id])
@@ -98,6 +150,7 @@ model Evaluation {
   @@index([templateId])
   @@index([evaluatorId])
   @@index([status])
+  @@index([isAutoEvaluation])
 }
 
 model EvaluationAnswer {
