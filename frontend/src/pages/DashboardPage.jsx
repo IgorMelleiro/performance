@@ -57,7 +57,7 @@ function StatCard({ title, value, subtitle, loading }) {
 
 function ClassificationPanel({ loading, items }) {
   return (
-    <Paper sx={{ p: 3, height: '100%' }}>
+    <Paper sx={{ p: 3, height: '100%', mt: 2 }}>
       <Typography variant="h6" gutterBottom>
         Distribuição por classificação
       </Typography>
@@ -107,7 +107,7 @@ function RecentEvaluationsPanel({
   navigate,
 }) {
   return (
-    <Paper sx={{ p: 3, mt: 8 }}>
+    <Paper sx={{ p: 3, mt: 2 }}>
       <Typography variant="h6" gutterBottom>
         Avaliações recentes
       </Typography>
